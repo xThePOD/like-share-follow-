@@ -15,7 +15,7 @@ type FrameContext = {
   status?: string;
 };
 
-const NEYNAR_API_KEY = '63FC33FA-82AF-466A-B548-B3D906ED2314'; // Replace with your actual Neynar API key
+const NEYNAR_API_KEY = 'YOUR_NEYNAR_API_KEY'; // Replace with your actual Neynar API key
 const API_BASE_URL = 'https://api.neynar.com/v2/farcaster';
 
 export const app = new Frog({
@@ -73,16 +73,25 @@ app.frame('/', (c: FrameContext) => {
 async function handleVerification(c: FrameContext) {
   const fid = c?.trustedData?.fid;
   const signature = c?.trustedData?.signature;
-  const castHash = '0x3ba6f52a'; // Replace with actual cast hash
-  const yourFid = '14871';        // Replace with your FID
+  const castHash = 'YOUR_CAST_HASH'; // Replace with actual cast hash
+  const yourFid = 'YOUR_FID';        // Replace with your FID
 
-  // If required parameters are missing, return an error response
+  console.log('trustedData:', c.trustedData);
+  console.log('buttonValue:', c.buttonValue);
+
   if (!fid || !signature) {
-    return Response.error(); // Simple error response
+    return c.res({
+      title: 'Error',
+      image: (
+        <div style={{ background: 'red', color: 'white', fontSize: 40, padding: '20px', textAlign: 'center', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          Error: User not authenticated. Please try again.
+        </div>
+      ),
+      intents: [<Button.Reset>Retry</Button.Reset>],
+    });
   }
 
   try {
-    // Fetch the cast reactions from Neynar API
     const neynarResponse = await axios.get(`${API_BASE_URL}/cast/${castHash}/reactions`, {
       headers: {
         api_key: NEYNAR_API_KEY,
@@ -91,57 +100,56 @@ async function handleVerification(c: FrameContext) {
 
     const reactions = neynarResponse.data;
 
-    // Check if the user has recasted and liked the cast
-    const hasRecasted = reactions.recasts.some(
-      (recast: { fid: string }) => recast.fid === fid
-    );
-    const hasLiked = reactions.likes.some(
-      (like: { fid: string }) => like.fid === fid
-    );
+    const hasRecasted = reactions.recasts.some((recast: { fid: string }) => recast.fid === fid);
+    const hasLiked = reactions.likes.some((like: { fid: string }) => like.fid === fid);
 
-    // If either condition isn't met, return a simple error response
     if (!hasRecasted || !hasLiked) {
-      return Response.error(); // Simple error response
+      return c.res({
+        title: 'Action Required',
+        image: (
+          <div style={{ background: 'orange', color: 'black', fontSize: 40, padding: '20px', textAlign: 'center', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            Please like and recast the original post before proceeding.
+          </div>
+        ),
+        intents: [<Button.Reset>Retry</Button.Reset>],
+      });
     }
 
-    // Check if the user is following you
     const isFollowing = await checkIfFollowing(fid, yourFid);
 
     if (isFollowing) {
       return c.res({
         title: 'Welcome',
         image: (
-          <div
-            style={{
-              alignItems: 'center',
-              background: 'linear-gradient(to right, #432889, #17101F)',
-              display: 'flex',
-              height: '100%',
-              justifyContent: 'center',
-              textAlign: 'center',
-              width: '100%',
-            }}
-          >
-            <div
-              style={{
-                color: 'white',
-                fontSize: 60,
-                marginTop: 30,
-                padding: '0 120px',
-                whiteSpace: 'pre-wrap',
-              }}
-            >
+          <div style={{ alignItems: 'center', background: 'linear-gradient(to right, #432889, #17101F)', display: 'flex', height: '100%', justifyContent: 'center', textAlign: 'center', width: '100%' }}>
+            <div style={{ color: 'white', fontSize: 60, marginTop: 30, padding: '0 120px', whiteSpace: 'pre-wrap' }}>
               Welcome to the Pod!
             </div>
           </div>
         ),
       });
     } else {
-      return Response.error(); // Simple error response if the user is not following
+      return c.res({
+        title: 'Action Required',
+        image: (
+          <div style={{ background: 'orange', color: 'black', fontSize: 40, padding: '20px', textAlign: 'center', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            Please follow the account before proceeding.
+          </div>
+        ),
+        intents: [<Button.Reset>Retry</Button.Reset>],
+      });
     }
   } catch (error) {
     console.error('Verification error:', error);
-    return Response.error(); // Return error for fetch or processing errors
+    return c.res({
+      title: 'Error',
+      image: (
+        <div style={{ background: 'red', color: 'white', fontSize: 40, padding: '20px', textAlign: 'center', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          An error occurred during verification. Please try again later.
+        </div>
+      ),
+      intents: [<Button.Reset>Retry</Button.Reset>],
+    });
   }
 }
 
