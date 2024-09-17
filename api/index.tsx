@@ -14,7 +14,7 @@ type FrameContext = {
   status?: string;
 };
 
-const NEYNAR_API_KEY = 'YOUR_NEYNAR_API_KEY'; // Replace with your actual Neynar API key
+const NEYNAR_API_KEY = '63FC33FA-82AF-466A-B548-B3D906ED2314'; // Replace with your actual Neynar API key
 const API_BASE_URL = 'https://api.neynar.com/v2/farcaster';
 
 export const app = new Frog({
@@ -49,8 +49,8 @@ app.frame('/', (c: FrameContext) => {
 
 async function handleVerification(c: FrameContext) {
   const fid = c?.trustedData?.fid;
-  const castHash = 'YOUR_CAST_HASH'; // Replace with the actual cast hash
-  const yourFid = 'YOUR_FID'; // Replace with your FID
+  const castHash = '0x3ba6f52a'; // Replace with the actual cast hash
+  const yourFid = '14871'; // Replace with your FID
 
   if (!fid) {
     return c.res({
