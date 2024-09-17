@@ -48,9 +48,9 @@ app.frame('/', (c: FrameContext) => {
 });
 
 async function handleVerification(c: FrameContext) {
-  const fid = c?.trustedData?.fid;
+  const fid = c?.trustedData?.fid;  // User's FID from the Farcaster context
   const castHash = '0x3ba6f52a'; // Replace with the actual cast hash
-  const yourFid = '14871'; // Replace with your FID
+  const yourFid = '14871';        // Replace with your FID
 
   if (!fid) {
     return c.res({
@@ -61,11 +61,42 @@ async function handleVerification(c: FrameContext) {
   }
 
   try {
-    const hasLiked = await checkUserInteraction(fid, castHash, 'like');
-    const hasRecasted = await checkUserInteraction(fid, castHash, 'recast');
+    // Fetch the cast reactions from Neynar API
+    const neynarResponse = await fetch(`${API_BASE_URL}/cast/${castHash}`, {
+      headers: {
+        api_key: NEYNAR_API_KEY,
+      },
+    });
+    const data = await neynarResponse.json();
+    const reactions = data.cast.reactions;
+
+    // Check if user has recasted and liked the cast
+    const hasRecasted = reactions.recasts.some(
+      (recast: { fid: string }) => recast.fid === fid  // Corrected comparison: string to string
+    );
+    const hasLiked = reactions.likes.some(
+      (like: { fid: string }) => like.fid === fid  // Corrected comparison: string to string
+    );
+
+    if (!hasRecasted || !hasLiked) {
+      // If the user hasn't recasted or liked, show error and retry option
+      return c.res({
+        title: 'Error',
+        image: (
+          <div style={{ alignItems: 'center', background: 'red', display: 'flex', height: '100%', justifyContent: 'center', textAlign: 'center', width: '100%' }}>
+            <div style={{ color: 'white', fontSize: 60, marginTop: 30, padding: '0 120px', whiteSpace: 'pre-wrap' }}>
+              Error: You must like and recast the cast first!
+            </div>
+          </div>
+        ),
+        intents: [<Button.Reset>Retry</Button.Reset>],
+      });
+    }
+
+    // Check if the user is following you
     const isFollowing = await checkIfFollowing(fid, yourFid);
 
-    if (hasLiked && hasRecasted && isFollowing) {
+    if (isFollowing) {
       return c.res({
         title: 'Welcome',
         image: (
@@ -82,7 +113,7 @@ async function handleVerification(c: FrameContext) {
         image: (
           <div style={{ alignItems: 'center', background: 'red', display: 'flex', height: '100%', justifyContent: 'center', textAlign: 'center', width: '100%' }}>
             <div style={{ color: 'white', fontSize: 60, marginTop: 30, padding: '0 120px', whiteSpace: 'pre-wrap' }}>
-              Error: You must like, recast, and follow first!
+              Error: You must follow me first!
             </div>
           </div>
         ),
@@ -99,19 +130,7 @@ async function handleVerification(c: FrameContext) {
   }
 }
 
-async function checkUserInteraction(fid: string, castHash: string, type: 'like' | 'recast') {
-  try {
-    const response = await axios.get(`${API_BASE_URL}/cast/${castHash}`, {
-      headers: { api_key: NEYNAR_API_KEY },
-    });
-    const interactions = type === 'like' ? response.data.cast.reactions.likes : response.data.cast.reactions.recasts;
-    return interactions.some((interaction: { fid: string }) => interaction.fid === fid);
-  } catch (error) {
-    console.error(`Error checking ${type}:`, error);
-    throw error;
-  }
-}
-
+// Function to check if the user is following you
 async function checkIfFollowing(fid: string, targetFid: string) {
   try {
     const response = await axios.get(`${API_BASE_URL}/user/${fid}/following`, {
